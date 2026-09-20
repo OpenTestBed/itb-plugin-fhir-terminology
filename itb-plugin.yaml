@@ -1,0 +1,41 @@
+apiVersion: itb-plugins/v1
+name: fhir-terminology
+version: 0.1.0
+description: >
+  Terminology operations of a FHIR terminology server ($expand, $validate-code,
+  $lookup, $subsumes, $translate, the capability statements), as the HL7
+  terminology-ecosystem test set exercises them.
+homepage: https://github.com/OpenTestBed/itb-plugin-fhir-terminology
+license: BSD-3-Clause
+maintainers: [jose.a.teixeira@gmail.com]
+
+# DIALECT ONLY — this plugin deploys nothing.
+#
+# The system under test IS the terminology server, so there is no simulator to
+# run; and the one judgement a test makes that the server cannot make for
+# itself (does this response match the expected one?) is a matchetype
+# comparison, which the fhir-validator plugin already serves. So this plugin
+# contributes vocabulary and nothing else: no compose file, no image, no
+# endpoints.
+runtime: {}
+
+endpoints: {}
+
+provides: []
+
+# The matchetype comparison the `should match the pattern in` steps call.
+requires:
+  - { capability: fhir-matchetype, uri: https://opentestbed.github.io/itb-plugins/capabilities/fhir-matchetype, version: 1.0.0 }
+
+# Language extension (dialect): parser-format files live in dialect/
+# (component.yml + steps.yml) — THE canonical copy. The copies under
+# public/components/ in the workbench and the ITB manager are written by
+# itb-cli/src/sync-dialects.mjs; edit them there and the next sync overwrites you.
+#
+# Generation 2 only: there is no steps-v1.yml, because this dialect did not
+# exist when the language was generation 1.
+dialect:
+  path: dialect/
+  namespace: tx
+
+config: {}
