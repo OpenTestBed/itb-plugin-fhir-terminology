@@ -12,7 +12,7 @@ already serves at `/itb/matchetype`. What is here is vocabulary.
 
 ## The language it adds
 
-One actor kind, `terminology-server`, and fourteen verbs:
+One actor kind, `terminology-server`, and fifteen verbs:
 
 ```gherkin
 Background:
@@ -49,9 +49,10 @@ Scenario: simple-expand-all
 | `<Client> reads the capability statement of <Server> as $x` | `GET /metadata` |
 | `<Client> reads the terminology capabilities of <Server> as $x` | `GET /metadata?mode=terminology` |
 
-and four that are about the test material rather than the server:
+and five that are about the test material rather than the server:
 `fetches the test material from`, `is given the resources:`,
-`should match the pattern in "file"`, `should match one of the patterns in:`.
+`should match the pattern in "file"`, `should contain the pattern in "file"`,
+`should match one of the patterns in:`.
 
 ## How a request is built
 
@@ -71,13 +72,37 @@ legitimately differ between servers and runs. A test fetches the file at run
 time and hands it to the validator's matchetype service as the pattern, so the
 expectations cannot drift from the source.
 
-**Known gap.** The validator's `/itb/matchetype` endpoint (`MatchetypeValidator`)
-compares arrays in order and does not honour `$optional-properties$` or an
-array item's `$optional$`. The HL7 runner compares with `CompareUtilities`
-after sorting the actual response (`TxTesterSorters`) and stripping
-`issue.diagnostics` (`TxTesterScrubbers`). Until the endpoint does the same, a
-server that is right but answers in another order fails here and passes there.
-That belongs in the validator, not in this dialect.
+**How the comparison is asked for.** The expectation files are stored in the order the
+terminology test runner's sorters produce, so a comparison that ignored that would fail on
+array order alone. The steps therefore ask the validator's matchetype service to normalise
+the response first (`normalize=tx`), which is the same normalisation the runner applies:
+server detail such as narrative, meta and diagnostics removed, and parameters, parts,
+expansion contents, designations and issues sorted.
+
+Two shapes, matching the service's two modes:
+
+| Step | Mode | For |
+|---|---|---|
+| `should match the pattern in "file"` | `complete` | the response must match the file, wildcards aside |
+| `should contain the pattern in "file"` | `partial` | the file states a minimum; the capability statements |
+
+**Still open** (measured against the validator build of 2026-09-21, and worth re-checking
+before relying on a result):
+
+1. `ValueSet.expansion.parameter` is sorted by the normalisation but the stored files are
+   not in that order, so an expansion response that is right still fails. Reproduce by
+   comparing an expectation file with itself: fill its placeholders, drop the `$optional…`
+   markers, and compare with `normalize=tx`. It passes without the input and fails with it.
+   Normalising a file that already matches should be a no-op.
+2. What a file marks optional still has to be present, in both forms. An array item marked
+   `$optional$` fails on the item count when absent, and a property listed in
+   `$optional-properties$` fails as "missing element" when absent. Reproduce with an
+   expectation file as the actual, with those elements removed.
+
+Measured effect on the `simple-cases` suite against a conformant server: the validator's own
+runner passes all of its tests, while the same comparisons through the service pass 16 of 37.
+The 21 that fail are every expansion test (defect 1) and both lookups (defect 2). No failure
+in that suite is the server's.
 
 ## Where the files go
 
