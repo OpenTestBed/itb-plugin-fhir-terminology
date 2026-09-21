@@ -86,23 +86,18 @@ Two shapes, matching the service's two modes:
 | `should match the pattern in "file"` | `complete` | the response must match the file, wildcards aside |
 | `should contain the pattern in "file"` | `partial` | the file states a minimum; the capability statements |
 
-**Still open** (measured against the validator build of 2026-09-21, and worth re-checking
-before relying on a result):
+**What to expect today.** Three things decide whether a comparison is trustworthy, and two
+of them are outside these tests (all measured 2026-09-21 against a conformant server, where the
+validator's own `txTests` runner passes every test of the `simple-cases` suite):
 
-1. `ValueSet.expansion.parameter` is sorted by the normalisation but the stored files are
-   not in that order, so an expansion response that is right still fails. Reproduce by
-   comparing an expectation file with itself: fill its placeholders, drop the `$optional…`
-   markers, and compare with `normalize=tx`. It passes without the input and fails with it.
-   Normalising a file that already matches should be a no-op.
-2. What a file marks optional still has to be present, in both forms. An array item marked
-   `$optional$` fails on the item count when absent, and a property listed in
-   `$optional-properties$` fails as "missing element" when absent. Reproduce with an
-   expectation file as the actual, with those elements removed.
+| | |
+|---|---|
+| Optional markers | An expectation file's `$optional$` and `$optional-properties$` were ignored: the comparer reads extensions and nothing converted the markers. Fixed in the fork, not yet released. With a released validator, expect "array item count differs" and "missing element" where the file says the element is optional. |
+| Model version | The service must run on the **R5** model (`-version 5.0`). The expectation files are R5-shaped, and under `-version 4.0` an R5-only element such as `contains.property` is silently dropped from the pattern, so a response missing it **passes**. A false pass is worse than a false failure. |
+| Version reconciliation | The files are R5 and a server may be R4. The runner knows the server's version and reconciles; the matchetype service has no notion of modes or versions, so an R5-only element is demanded of an R4 server. 11 of the 37 `simple-cases` tests still fail this way after the fix above, all on `expansion.contains.property`. |
 
-Measured effect on the `simple-cases` suite against a conformant server: the validator's own
-runner passes all of its tests, while the same comparisons through the service pass 16 of 37.
-The 21 that fail are every expansion test (defect 1) and both lookups (defect 2). No failure
-in that suite is the server's.
+Pass rates on `simple-cases` against the same server: 16 of 37 with the released validator on
+`-version 4.0`, 26 of 37 with the fix on `-version 5.0`, all of them with the runner itself.
 
 ## Where the files go
 
